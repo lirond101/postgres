@@ -65,9 +65,9 @@ spec:
           protocol: TCP
         env:
         - name: FLASK_APP
-          value: "kandula-prod"
+          value: "kandula-test"
         - name: SECRET_KEY
-          value: "kandula-prod"
+          value: "kandula-test"
         - name: AWS_DEFAULT_REGION
           value: "us-east-1"
         volumeMounts:

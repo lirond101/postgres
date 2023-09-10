@@ -1,2 +1,32 @@
 docker run -d --name postgres -p 54321:5432 -v "$PWD/my-postgres.conf":/etc/postgresql/postgresql.conf -e POSTGRES_PASSWORD=mysecretpassword postgres -c 'config_file=/etc/postgresql/postgresql.conf'
 /Library/PostgreSQL/14/bin/psql -U postgres -h localhost -p 54321
+
+Update pg_hba.conf:
+$ docker exec -it <container-id> /bin/bash
+$ echo "host    all             all             0.0.0.0/0              scram-sha-256" >> /var/lib/postgresql/data/pg_hba.conf
+
+$ vault secrets enable database
+
+$ vault write database/config/kandula_db \
+    plugin_name=postgresql-database-plugin \
+    allowed_roles="dbuser" \
+    connection_url="postgresql://{{username}}:{{password}}@127.0.0.1:54321/postgres" \
+    username="vault" \
+    password="vault-password"
+
+$ vault write database/roles/dbuser \
+    db_name="kandula_db" \
+    max_ttl="10m" \
+    creation_statements="CREATE USER \"{{name}}\" WITH SUPERUSER ENCRYPTED PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+    revocation_statements="REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM \"{{name}}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
+
+# https://developer.hashicorp.com/vault/api-docs/secret/databases
+
+$ curl \
+    --header "X-Vault-Token: root" \
+    --request GET \
+    http://127.0.0.1:8200/v1/database/config/kandula_db
+
+$ curl \
+    --header "X-Vault-Token: root" \
+    http://127.0.0.1:8200/v1/database/creds/dbuser
